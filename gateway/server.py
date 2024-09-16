@@ -5,15 +5,18 @@ from auth import validate
 from auth_svc import access
 from storage import util
 from bson.objectid import ObjectId
+from pymongo import MongoClient
 
 server = Flask(__name__)
 
-mongo_video = PyMongo(server, uri="mongodb://host.minikube.internal:27017/videos")
+mongodb_uri = os.environ.get('MONGODB_URI')
+client = MongoClient(mongodb_uri)
 
-mongo_mp3 = PyMongo(server, uri="mongodb://host.minikube.internal:27017/mp3s")
+mongo_video = client.videos
+mongo_mp3 = client.mp3s
 
-fs_videos = gridfs.GridFS(mongo_video.db)
-fs_mp3s = gridfs.GridFS(mongo_mp3.db)
+fs_videos = gridfs.GridFS(mongo_video)
+fs_mp3s = gridfs.GridFS(mongo_mp3)
 
 connection = pika.BlockingConnection(pika.ConnectionParameters("rabbitmq"))
 channel = connection.channel()
@@ -73,7 +76,7 @@ def download():
             return send_file(out, download_name=f"{fid_string}.mp3")
         except Exception as err:
             print(err)
-            return "internal server error", 500
+            return "internal server error while getting mp3 file from MongoDB \n%s" % err, 500
 
     return "not authorized", 401
 
